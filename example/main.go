@@ -26,7 +26,3 @@ func main() {
 	fmt.Printf("Rangda listening on %s\n", url)
 	log.Fatal(http.ListenAndServe(url, r))
 }
-
-func helloWorld(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("Hello World!"))
-}
