@@ -31,6 +31,8 @@ func main() {
 		Handler:      r,
 	}
 
+	fmt.Printf("Rangda to listen on %s", address)
+
 	if err := srv.ListenAndServe(); err != nil {
 		panic(err)
 	}
