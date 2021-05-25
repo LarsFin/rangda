@@ -18,8 +18,10 @@ func main() {
 
 	url := fmt.Sprintf("%s:%d", s.Host, s.Port)
 
+	ran := rangda.New(s.ApiKey)
+
 	r := mux.NewRouter()
-	r.HandleFunc("/", helloWorld)
+	r.HandleFunc("/github/review", ran.ReviewEventHandler)
 
 	fmt.Printf("Rangda listening on %s\n", url)
 	log.Fatal(http.ListenAndServe(url, r))

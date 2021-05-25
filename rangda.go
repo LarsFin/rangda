@@ -21,7 +21,7 @@ type Rangda struct {
 }
 
 // Instances rangda service with client from context
-func NewRangda(apiKey string) *Rangda {
+func New(apiKey string) *Rangda {
 	r := Rangda{}
 
 	ctx := context.Background()
@@ -46,13 +46,21 @@ func (rangda *Rangda) ReviewEventHandler(w http.ResponseWriter, r *http.Request)
 	prReview := github.PullRequestReviewEvent{}
 	json.Unmarshal(reqBody, &prReview)
 
+	pr := rangda.getPullRequest(*prReview.Repo, *prReview.PullRequest.Number)
+
+	if strings.ToUpper(*pr.State) != "OPEN" {
+		fmt.Println("Pull Request is not open.")
+		w.Write([]byte("Pull Request is not open."))
+		return
+	}
+
 	if strings.ToUpper(*prReview.Review.State) != "APPROVED" {
 		fmt.Println("Pull Request review is not an approval.")
 		w.Write([]byte("Pull Request review is not an approval."))
 		return
 	}
 
-	if strings.ToUpper(*prReview.PullRequest.MergeableState) != "CLEAN" {
+	if strings.ToUpper(*pr.MergeableState) != "CLEAN" {
 		fmt.Println("Pull Request cannot be automatically merged.")
 		rangda.comment(*prReview.Repo, *prReview.PullRequest, "Pull Request cannot be merged. Please fix Pull Request and re approve.")
 		w.Write([]byte("Pull Request is not suitable for merging."))
@@ -65,44 +73,52 @@ func (rangda *Rangda) ReviewEventHandler(w http.ResponseWriter, r *http.Request)
 
 // Creates a comment on the passed pull request
 func (rangda *Rangda) comment(repo github.Repository, pr github.PullRequest, commentText string) {
-	c := github.PullRequestComment{
+	c := github.IssueComment{
 		Body: &commentText,
 	}
 
-	_, res, err := rangda.client.PullRequests.CreateComment(
+	_, _, err := rangda.client.Issues.CreateComment(
 		context.Background(),
-		*repo.Owner.Name,
+		*repo.Owner.Login,
 		*repo.Name,
-		int(*pr.ID),
+		*pr.Number,
 		&c,
 	)
 
 	if err != nil {
 		panic(err)
 	}
-
-	if res.Status != http.StatusText(http.StatusCreated) {
-		fmt.Println("Failed to make comment.")
-	}
 }
 
-// Merges the target Pull Request
-func (rangda *Rangda) merge(repo github.Repository, pr github.PullRequest) {
-	_, res, err := rangda.client.PullRequests.Merge(
+// Get pull request with all necessary data
+func (rangda *Rangda) getPullRequest(repo github.Repository, prID int) *github.PullRequest {
+	pr, _, err := rangda.client.PullRequests.Get(
 		context.Background(),
-		*repo.Owner.Name,
+		*repo.Owner.Login,
 		*repo.Name,
-		int(*pr.ID),
-		"",
-		&github.PullRequestOptions{},
+		prID,
 	)
 
 	if err != nil {
 		panic(err)
 	}
 
-	if res.Status != http.StatusText((http.StatusOK)) {
-		fmt.Println("Failed to merge pull request.")
+	return pr
+}
+
+// Merges the target Pull Request
+func (rangda *Rangda) merge(repo github.Repository, pr github.PullRequest) {
+	_, _, err := rangda.client.PullRequests.Merge(
+		context.Background(),
+		*repo.Owner.Login,
+		*repo.Name,
+		*pr.Number,
+		"",
+		&github.PullRequestOptions{},
+	)
+
+	if err != nil {
+		panic(err)
 	}
 }
 
