@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"rangda"
+	"time"
 
 	"github.com/gorilla/mux"
 )
@@ -16,13 +16,22 @@ func main() {
 		panic(err)
 	}
 
-	url := fmt.Sprintf("%s:%d", s.Host, s.Port)
+	address := fmt.Sprintf("%s:%d", s.Host, s.Port)
 
 	ran := rangda.New(s.ApiKey)
 
 	r := mux.NewRouter()
 	r.HandleFunc("/github/review", ran.ReviewEventHandler)
 
-	fmt.Printf("Rangda listening on %s\n", url)
-	log.Fatal(http.ListenAndServe(url, r))
+	srv := &http.Server{
+		Addr:         address,
+		WriteTimeout: time.Second * 15,
+		ReadTimeout:  time.Second * 15,
+		IdleTimeout:  time.Second * 60,
+		Handler:      r,
+	}
+
+	if err := srv.ListenAndServe(); err != nil {
+		panic(err)
+	}
 }
